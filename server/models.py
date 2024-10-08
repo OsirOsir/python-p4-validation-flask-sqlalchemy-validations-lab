@@ -1,5 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import validates
+import re
+
 db = SQLAlchemy()
 
 class Author(db.Model):
@@ -11,7 +13,23 @@ class Author(db.Model):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
 
-    # Add validators 
+    # Add validators
+    @validates('name')
+    def validates_name(self, key, name):
+        if not name:
+            raise ValueError("Name cannot be empty.")
+        return name
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if Author.query.filter_by(name=self.name).first() is not None:
+            raise ValueError("Author name must be unique.")
+    
+    @validates('phone_number')
+    def validates_phone_number(self, key, phone_number):
+        if phone_number and not re.match(r'^\d{10}$', phone_number):
+            raise ValueError("Phone number must be exactly 10 digits.")
+        return phone_number
 
     def __repr__(self):
         return f'Author(id={self.id}, name={self.name})'
@@ -27,8 +45,33 @@ class Post(db.Model):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
 
-    # Add validators  
-
-
+    # Add validators
+    @validates('content')
+    def validates_content(self, key, content):
+        if len(content) < 250:
+            raise ValueError("Content should be at least 250 characters long.")
+        return content
+    
+    @validates('summary')
+    def validates_summary(self, key, summary):
+        if len(summary) > 250:
+            raise ValueError("Summary cannot exceed 250 characters.")
+        return summary
+    
+    @validates('category')
+    def validates_category(self, key, category):
+        if category not in ['Fiction', 'Non-Fiction']:
+            raise ValueError("Category should be 'Fiction' or 'Non-Fiction'.")
+        return category
+    
+    @validates('title')
+    def validates_title(self, key, title):
+        clickbait_phrases = ["Won't Believe", "Secret", "Top", "Guess"]
+        if not any(phrase in title for phrase in clickbait_phrases):
+            raise ValueError("Title must be sufficiently clickbait-y and contain one of the following: 'Won't Believe', 'Secret', 'Top', or 'Guess'.")
+        
+        return title
+    
+    
     def __repr__(self):
         return f'Post(id={self.id}, title={self.title} content={self.content}, summary={self.summary})'
